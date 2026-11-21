@@ -1,20 +1,277 @@
 <!DOCTYPE html>
-<html
-        lang="ko"
-        xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>카드 딜러</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Royal Card Dealer</title>
+
+    <!-- Google Fonts: 고급스러운 세리프 & 깔끔한 산세리프 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'display': ['Cinzel', 'serif'],
+                        'sans': ['Noto Sans KR', 'sans-serif'],
+                    },
+                    colors: {
+                        'felt-dark': '#062c1e',
+                        'felt-light': '#0f5132',
+                        'gold-light': '#fde047',
+                        'gold-main': '#d4af37',
+                        'gold-dark': '#996515',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* 실제 카지노 펠트(녹색 천) 질감 및 조명 효과 */
+        .casino-table {
+            background-color: #093826;
+            background-image:
+                    radial-gradient(circle at 50% 35%, rgba(20, 108, 67, 0.75) 0%, rgba(4, 28, 18, 0.96) 85%),
+                    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.06'/%3E%3C/svg%3E");
+            box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.9);
+        }
+
+        /* 3D 카드 원근감 컨테이너 */
+        .perspective-container {
+            perspective: 1200px;
+        }
+
+        /* 카드 본체 (3D 회전 및 그림자) */
+        .card-inner {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 2.5 / 3.5; /* 실제 포커 카드 비율 */
+            transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d;
+            border-radius: 12px;
+            box-shadow:
+                    0 15px 30px -5px rgba(0, 0, 0, 0.7),
+                    0 5px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 카드가 뒤집힌(앞면 공개) 상태 */
+        .card-inner.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* 앞면/뒷면 공통 */
+        .card-face {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* 카드 뒷면 (클래식 로열 패턴) */
+        .card-back {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 5px solid #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-back-pattern {
+            width: calc(100% - 14px);
+            height: calc(100% - 14px);
+            border: 1.5px solid rgba(212, 175, 55, 0.6);
+            border-radius: 6px;
+            background-image: repeating-linear-gradient(
+                    45deg,
+                    rgba(212, 175, 55, 0.12) 0px,
+                    rgba(212, 175, 55, 0.12) 4px,
+                    transparent 4px,
+                    transparent 10px
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 카드 앞면 (실제 이미지) */
+        .card-front {
+            transform: rotateY(180deg);
+            background-color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        /* 마우스 호버 시 빛 반사(광택) 효과 */
+        .card-sheen {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                    125deg,
+                    rgba(255, 255, 255, 0) 30%,
+                    rgba(255, 255, 255, 0.35) 50%,
+                    rgba(255, 255, 255, 0) 70%
+            );
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .card-slot:hover .card-sheen {
+            opacity: 1;
+        }
+
+        /* 금색 메탈릭 버튼 */
+        .btn-gold {
+            background: linear-gradient(135deg, #f3e5ab 0%, #d4af37 50%, #aa7c11 100%);
+            color: #1a1200;
+            box-shadow:
+                    0 10px 25px -5px rgba(212, 175, 55, 0.4),
+                    inset 0 1px 1px rgba(255, 255, 255, 0.8);
+        }
+
+        .btn-gold:hover {
+            background: linear-gradient(135deg, #fff3c4 0%, #e5c158 50%, #b8860b 100%);
+            transform: translateY(-2px);
+            box-shadow:
+                    0 15px 30px -5px rgba(212, 175, 55, 0.6),
+                    inset 0 1px 2px rgba(255, 255, 255, 0.9);
+        }
+
+        .btn-gold:active {
+            transform: translateY(1px);
+        }
+    </style>
 </head>
-<body>
-<h3>카드</h3>
-<div style="display: flex;">
-    <div th:each="card : ${cards}">
-        <img
-                th:src="@{/images/{imageName}(imageName=${card})}"
-                alt="카드 이미지"
-                width="200px">
+
+<body class="casino-table min-h-screen flex flex-col justify-between text-white font-sans antialiased selection:bg-gold-main selection:text-black">
+
+<!-- 상단 테이블 림(테두리) 라인 -->
+<div class="w-full h-1.5 bg-gradient-to-r from-transparent via-gold-main/60 to-transparent"></div>
+
+<main class="max-w-screen-xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow flex flex-col justify-center">
+
+    <!-- 헤더 영역 -->
+    <header class="text-center mb-12">
+        <div class="inline-flex items-center gap-3 text-gold-main/80 text-sm tracking-[0.3em] uppercase mb-2">
+            <span>♠</span>
+            <span>♦</span>
+            <span class="font-display font-semibold">VIP Lounge</span>
+            <span>♣</span>
+            <span>♥</span>
+        </div>
+        <h1 class="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-b from-yellow-100 via-gold-main to-amber-700 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)]">
+            GOOD LUCK!
+        </h1>
+        <div class="w-48 h-[1px] bg-gradient-to-r from-transparent via-gold-main/50 to-transparent mx-auto mt-4"></div>
+    </header>
+
+    <!-- 테이블 중앙 카드 영역 -->
+    <div class="relative py-8 px-4 rounded-3xl border border-gold-main/20 bg-black/15 backdrop-blur-[2px] shadow-2xl">
+        <!-- 테이블 장식 문구 -->
+        <p class="text-center font-display text-xs tracking-[0.35em] text-emerald-200/30 uppercase mb-6 select-none">
+            Dealer Draws To 16 • Stands On All 17s
+        </p>
+
+        <!-- 카드 리스트 (기존 Thymeleaf 반복문 유지) -->
+        <div class="flex flex-wrap justify-center gap-5 sm:gap-7 md:gap-8">
+            <div th:each="imageName, iterStat : ${cards}"
+                 class="card-slot perspective-container w-[42%] sm:w-[28%] md:w-[20%] lg:w-[16%]"
+                 style="max-width: 210px;"
+                 th:data-index="${iterStat.index}">
+
+                <div class="card-inner cursor-pointer" onclick="this.classList.toggle('is-flipped')">
+                    <!-- 카드 뒷면 (초기 로딩 시 보이다가 순차적으로 뒤집힘) -->
+                    <div class="card-face card-back">
+                        <div class="card-back-pattern">
+                            <span class="font-display text-gold-main/80 text-2xl">♛</span>
+                        </div>
+                    </div>
+
+                    <!-- 카드 앞면 (실제 카드 이미지) -->
+                    <div class="card-face card-front">
+                        <img th:src="@{/images/{imageName}(imageName=${imageName})}"
+                             alt="카드 이미지"
+                             class="w-full h-full object-cover select-none"
+                             draggable="false" />
+                        <div class="card-sheen"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 카드가 없을 때의 안내 (선택적 안전장치) -->
+        <div th:if="${#lists.isEmpty(cards)}" class="text-center py-12 text-emerald-100/60">
+            <p class="text-lg">딜링된 카드가 없습니다. 아래 버튼을 눌러 카드를 뽑아주세요.</p>
+        </div>
     </div>
-</div>
+
+    <!-- 하단 컨트롤 영역 -->
+    <div class="flex flex-col items-center justify-center mt-12 gap-4">
+        <a th:href="@{/cards/random}"
+           class="btn-gold inline-flex items-center gap-3 font-bold text-lg py-3.5 px-10 rounded-full transition-all duration-300 ease-out tracking-wide">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+            </svg>
+            <span>다시 뽑기</span>
+        </a>
+        <span class="text-xs text-emerald-200/50">카드를 클릭하면 뒷면과 앞면을 전환할 수 있습니다</span>
+    </div>
+
+</main>
+
+<!-- 하단 테이블 림 라인 -->
+<div class="w-full h-1.5 bg-gradient-to-r from-transparent via-gold-main/60 to-transparent"></div>
+
+<!-- 딜링 애니메이션 및 3D 마우스 틸트 스크립트 -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const cardSlots = document.querySelectorAll('.card-slot');
+
+        cardSlots.forEach((slot, index) => {
+            const cardInner = slot.querySelector('.card-inner');
+
+            // 1. 페이지 로드 시 딜러가 카드를 한 장씩 뒤집어주는 듯한 순차 애니메이션
+            setTimeout(() => {
+                cardInner.classList.add('is-flipped');
+            }, 200 + (index * 160));
+
+            // 2. 마우스 움직임에 따른 입체 3D 기울기(Tilt) 효과
+            slot.addEventListener('mousemove', (e) => {
+                if (!cardInner.classList.contains('is-flipped')) return;
+
+                const rect = slot.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+
+                const rotateX = ((y - centerY) / centerY) * -12; // 상하 기울기
+                const rotateY = ((x - centerX) / centerX) * 12;  // 좌우 기울기
+
+                cardInner.style.transition = 'transform 0.1s ease-out';
+                cardInner.style.transform = `rotateY(${180 + rotateY}deg) rotateX(${rotateX}deg) scale(1.06)`;
+            });
+
+            // 마우스가 벗어나면 원래 각도로 부드럽게 복귀
+            slot.addEventListener('mouseleave', () => {
+                cardInner.style.transition = 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)';
+                if (cardInner.classList.contains('is-flipped')) {
+                    cardInner.style.transform = 'rotateY(180deg) rotateX(0deg) scale(1)';
+                } else {
+                    cardInner.style.transform = 'rotateY(0deg) rotateX(0deg) scale(1)';
+                }
+            });
+        });
+    });
+</script>
 </body>
 </html>
